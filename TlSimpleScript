@@ -1,0 +1,75 @@
+#!/bin/bash
+
+# The one and only!
+
+
+
+DUMP_FILENAME="TLTest.dump"
+HOME_DIR="$HOME/TrueLayer"
+DUMP_DIR="$HOME_DIR/$DUMP_FILENAME"
+
+function main() {
+        echo "[INFO] Checking if script has correct privileges.."
+        if (( $EUID != 0 )); then # Check if the current UID is 0 (will only execute if running as sudo)
+                echo "[ERROR] Please run the script with sudo privileges!"
+                exit
+        elif (( $EUID == 0 )); then
+                echo "[INFO] We have privileges! Proceeding.."
+                check_home_path # Call the function check_home_path to check if directories exist
+                if [ $? -eq 0 ]; then
+                        check_dump_file # Call the check_dump_file function to check if dump file exist
+                        if [ $? -eq 0 ]; then
+                                echo "[INFO] Attempting to dump data to directory: $DUMP_DIR"
+                                dump_data >> $HOME_DIR/$DUMP_FILENAME # Calls the data dump function to dump data into the relevant folder
+                                if [ $? -eq 0 ]; then
+                                        echo "[INFO] Dump successful!"
+                                        exit
+                                else
+                                        echo "[ERROR] Could not dump data!"
+                                fi
+                        else
+                                echo "[ERROR] Checking dump file failed."
+                        fi
+
+                else
+                        echo "[ERROR] Checking home path failed."
+                fi
+        fi
+}
+
+function check_home_path() {
+        echo "[INFO] Checking if $HOME_DIR exists..."
+        if [ -d $HOME_DIR ]; then # If the HOME_DIR directory exists, proceed and return 0 (true), so we can call $?
+                echo "[INFO] Directory $HOME_DIR already exists!"
+                return 0
+        else
+                echo "[INFO] Output directory not found, creating now.."
+                mkdir $HOME_DIR # Create the directory
+                echo "[INFO] Directory has been created!"
+                return 0
+        fi
+}
+
+function check_dump_file() {
+        echo "[INFO] Checking if $DUMP_FILENAME exists..."
+        if [ -f $DUMP_DIR ]; then # Dump file check for existence
+                echo "[INFO] $DUMP_FILENAME exists, proceeding with data dump..."
+                return 0 # Return for command succession check $?
+        else
+                echo "[INFO] File $DUMP_FILENAME does not exist! Attempting to create now..."
+                cd $HOME_DIR && touch $DUMP_FILENAME # Change directory and create the dump file, using touch to ensure timestamp
+                echo "[INFO] $DUMP_FILENAME created."
+        fi
+}
+
+function dump_data() { # This mainly explains itself
+        echo "Script started at: $(date)"
+        echo "Script filename: $(basename $0)"
+        echo "Current Public iPv4 Address: $(wget -qO- https://ipecho.net/plain)"
+        echo "Current script PID/User: $$ : $USER"
+        echo "Ram Available: $(awk '/MemFree/ {printf( "%.2f\n", $2 / 1024 )}' /proc/meminfo)MB"
+        echo "-------------------------------- "
+        echo "All files from current run directory:" && ls -la
+}
+
+main
